@@ -14,4 +14,7 @@ Gem::Specification.new do |gem|
   gem.name          = "hippo_claim_crossover"
   gem.require_paths = ["lib"]
   gem.version       = HippoClaimCrossover::VERSION
+
+  gem.dependency "hippo"
+  gem.dependency "ruby_claim"
 end

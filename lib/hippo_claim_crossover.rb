@@ -1,6 +1,5 @@
 require 'ruby_claim'
 require 'hippo'
-require 'pry'
 
 class HippoClaimCrossover
   def initialize(string)

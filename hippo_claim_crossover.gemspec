@@ -12,7 +12,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.name          = "hippo_claim_crossover"
   gem.require_paths = ["lib"]
-  gem.version       = HippoClaimCrossover::VERSION
+  gem.version       = "0.0.1"
 
   gem.add_dependency "hippo"
   gem.add_dependency "ruby_claim"

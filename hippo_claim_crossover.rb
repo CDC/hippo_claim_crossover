@@ -1,8 +1,6 @@
-require 'require_relative'
+require 'ruby_claim'
+require 'hippo'
 require 'pry'
-
-require_relative '../ruby_claim/lib/ruby_claim.rb'
-require_relative '../hippo/lib/hippo.rb'
 
 class HippoClaimCrossover
   def initialize(string)

@@ -1,4 +1,5 @@
 source 'https://rubygems.org'
 
 gem 'pry'
-gem 'require_relative'
+gem 'hippo'
+gem 'ruby_claim', :path => '../ruby_claim'

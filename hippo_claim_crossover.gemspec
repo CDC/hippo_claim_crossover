@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-require File.expand_path('../lib/hippo_claim_crossover/version', __FILE__)
 
 Gem::Specification.new do |gem|
   gem.authors       = ["Jon Jackson"]

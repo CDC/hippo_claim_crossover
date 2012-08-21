@@ -2,6 +2,8 @@ require 'ruby_claim'
 require 'hippo'
 
 class HippoClaimCrossover
+  VERSION = "0.0.1"
+
   def initialize(string)
     @hippo_object ||= Hippo::TransactionSets::HIPAA_837::L2000A.new.parse(string)
     @claim        ||= RubyClaim::Claim.new(:hide_background=>false)

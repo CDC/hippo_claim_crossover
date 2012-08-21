@@ -4,8 +4,8 @@ require File.expand_path('../lib/hippo_claim_crossover/version', __FILE__)
 Gem::Specification.new do |gem|
   gem.authors       = ["Jon Jackson"]
   gem.email         = ["jonj@promedicalinc.com"]
-  gem.description   = %q{TODO: Write a gem description}
-  gem.summary       = %q{TODO: Write a gem summary}
+  gem.description   = %q{Map from HIPAA 837 claims to CMS 1500 pdfs.}
+  gem.summary       = %q{Map from HIPAA 837 claims to CMS 1500 pdfs.}
   gem.homepage      = ""
 
   gem.files         = `git ls-files`.split($\)

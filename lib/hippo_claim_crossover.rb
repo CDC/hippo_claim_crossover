@@ -2,19 +2,17 @@ require 'ruby_claim'
 require 'hippo'
 
 class HippoClaimCrossover
-  VERSION = "0.0.1"
+  VERSION = '0.0.1'
+
+  attr_reader :claim
 
   def initialize(string)
     @hippo_object ||= Hippo::TransactionSets::HIPAA_837::L2000A.new.parse(string)
     @claim        ||= RubyClaim::Claim.new(:hide_background=>false)
   end
 
-  def claim
-    return @claim
-  end
-
   def to_claim
-    claim.insurance_type = :medicare
+    claim.insurance_type                           = :medicare
     claim.patient_or_authorized_signature          = "Signature on File"
     claim.patient_or_authorized_signature_date     = "2012-08-02"                # Field type is string, not date!
     claim.insured_or_authorized_signature          = "Signature on File"
@@ -36,6 +34,7 @@ class HippoClaimCrossover
         end
       end
 
+      # insured
       l2000b.L2010BA do |l2010ba|
         claim.insured_name = l2010ba.NM1.NameLastOrOrganizationName
         claim.carrier_address_1 = l2010ba.N3.AddressInformation
@@ -45,6 +44,16 @@ class HippoClaimCrossover
           claim.insured_state =  n4.StateOrProvinceCode
           claim.insured_zip   =  n4.PostalCode
         end
+
+        l2010ba.DMG do |dmg|
+          claim.insured_date_of_birth                    = parse_dmg_date(dmg)
+          claim.insured_sex                              = parse_dmg_dob(dmg)
+        end
+      end
+
+      # other insured
+      l2000b.L2300.L2320.L2330A do |l2330a|
+        claim.other_insured_name = l2330a.NM1.NameLastOrOrganizationName
       end
 
       if patient_is_subscriber?
@@ -64,42 +73,32 @@ class HippoClaimCrossover
         end
       end
 
-      claim.referring_provider_name = l2000b.L2300.L2310A.NM1.NameLastOrOrganizationName
+      l2000b.L2300.L2310A do |l2310a|
+        claim.referring_provider_name             = l2310a.NM1.NameLastOrOrganizationName
+        claim.referring_provider_npi              = l2310a.NM1.IdentificationCode
+        claim.referring_provder_other_identifier  = l2310a.REF.ReferenceIdentificationQualifier
+        claim.referring_provider_other_number     = l2310a.REF.ReferenceIdentification
+      end
+
+      populate_services(l2000b.L2300.L2400)
     end # L2000B
 
 
 
+    claim.employer_name_or_school_name             = 'University Of Florida'
 
-    # claim.referring_provider_name                  = "Other Source or Provider"
-    claim.referring_provider_npi                   = "12031021230"
-    claim.referring_provder_other_identifier       = "J1"
-    claim.referring_provider_other_number          = "10000000000002"
-
-    claim.insured_phone                            = '3525555555'
-
-    claim.insured_employer_or_school_name          = 'University of Central London'
-    claim.insured_other_health_benefit_plan_exists = false
     claim.insured_policy_or_group_number           = '12341251'
-    claim.insured_date_of_birth                    = '1947-11-04'
-    claim.insured_sex                              = :male
+    claim.insured_other_health_benefit_plan_exists = false
+    claim.insured_employer_or_school_name          = 'University of Central London'
     claim.insured_insurance_plan_or_program_name   = "Blue Cross Bad Wolf"
 
-    claim.other_insured_name                       = 'Flinstone, Frederick, C'
+
+    claim.other_insured_date_of_birth              = "2010-01-01"
     claim.other_insured_sex                        = :male
-    claim.other_insured_date_of_birth              = '1955-10-31'
     claim.other_insured_policy_or_group_number     = '123451'
-    claim.employer_name_or_school_name             = 'University Of Florida'
+
     claim.other_insured_plan_or_program_name       = 'PLAN OR PROGRAM NAME'
 
-
-    # claim.patient_name                             = "Jane Jetson"
-    # claim.patient_address                          = 'patient_address'
-    # claim.patient_date_of_birth                    = '1960-07-21'
-    # claim.patient_sex                              = :female
-    # claim.patient_city                             = 'Ocala'
-    # claim.patient_state                            = 'FL'
-    # claim.patient_zip                              = '34476'
-    claim.patient_phone                            = '3525555555'
     claim.patient_marital_status                   = :single
     claim.patient_employment_status                = :full_time_student
     claim.patient_relationship_to_insured          = :self
@@ -146,11 +145,6 @@ class HippoClaimCrossover
     claim.provider_signature                       = "Physician Signature"
     claim.provider_signature_date                  = "2012-01-02"           # String not date field object
 
-    # claim.service_facility_name                    = "Service or Facility Name - OR"
-    # claim.service_facility_address                 = "12345 Example Rd"
-    # claim.service_facility_city                    = "Miami"
-    # claim.service_facility_state                   = "FL"
-    # claim.service_facility_zip                     = "34476"
     claim.service_facility_npi                     = "10000000000"
     claim.service_facility_legacy_number           = "10000000000"
 
@@ -163,28 +157,33 @@ class HippoClaimCrossover
     claim.billing_provider_npi                     = "10000000000"
     claim.billing_provider_legacy_number           = "10000000000"
 
-    (0...6).each do |i|
+
+    return claim
+  end
+
+  def populate_services(service_loop)
+    service_loop.each do |srv|
       claim.build_service do |s|
-        s.date_of_service_from    = claim.time_rand
-        s.date_of_service_to      = claim.time_rand
+        binding.pry
+
+        s.date_of_service_from    = [[0,4],[4,2],[6,2]].map {|pos| srv.DTP.DateTimePeriod[*pos]}.join("-")
         s.place_of_service        = "22"
-        s.emergency               = "12"
-        s.procedure_code          = "00851"
-        s.modifier_1              = "10"
-        s.modifier_2              = "10"
-        s.modifier_3              = "10"
-        s.modifier_4              = "10"
+        s.emergency               = ''
+        s.procedure_code          = srv.L2430.SVD.ProductServiceId
+        s.modifier_1              = srv.L2430.SVD.ProcedureModifier_01
+        s.modifier_2              = srv.L2430.SVD.ProcedureModifier_02
+        s.modifier_3              = srv.L2430.SVD.ProcedureModifier_03
+        s.modifier_4              = srv.L2430.SVD.ProcedureModifier_04
         s.diagnosis_pointer       = "1"
-        s.charges                 = 200.10
-        s.days_or_units           = 20
+        s.charges                 = srv.L2430.SVD.MonetaryAmount.to_f
+        s.days_or_units           = srv.L2430.SVD.Quantity.to_i
         s.epsdt_family_plan       = "Y"
         s.npi_number              = rand(10000000000000).to_s
         s.legacy_number_qualifier = "J1"
         s.legacy_number           = rand(10000000000000).to_s
-        s.description             = "START: 8:20AM      END: 9:12AM      MINUTES: 52 (Whatever you want!)"
+        s.description             = ""
       end
     end
-    return claim
   end
 
   def populate_patient(parent)
@@ -203,13 +202,21 @@ class HippoClaimCrossover
     end
 
     parent.DMG do |dmg|
-      claim.patient_date_of_birth = [[0,4],[4,2],[6,2]].map {|pos| dmg.DateTimePeriod[*pos] }.join("-")
+      claim.patient_date_of_birth = parse_dmg_date(dmg)
       claim.patient_sex           = (dmg.GenderCode == "M") ? :male : :female
     end
   end
 
   def patient_is_subscriber?
     @hippo_object.L2000B.HL.HierarchicalChildCode == "0"
+  end
+
+  def parse_dmg_date(dmg)
+    [[0,4],[4,2],[6,2]].map {|pos| dmg.DateTimePeriod[*pos] }.join("-")
+  end
+
+  def parse_dmg_dob(dmg)
+    (dmg.GenderCode == "M") ? :male : :female
   end
 end
 

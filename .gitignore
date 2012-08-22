@@ -1,5 +1,6 @@
 *.gem
 *.rbc
+sample_claim/
 .bundle
 .config
 .yardoc

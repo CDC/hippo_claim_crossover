@@ -139,7 +139,7 @@ class HippoClaimCrossover
       end
 
       l2000b.L2300.L2400 do |l2400|
-        populate_services(l2400)
+        populate_services(l2400) #24
 
         claim.outside_lab         = !l2400.PS1.MonetaryAmount #20
         claim.outside_lab_charges = l2400.PS1.MonetaryAmount  #20

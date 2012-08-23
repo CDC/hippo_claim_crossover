@@ -14,9 +14,25 @@ class HippoClaimCrossover
 
   def to_claim
     claim.insurance_type                           = :medicare
+    claim.billing_provider_phone                   = "5555555555" # ?
+    claim.federal_tax_id                           = :ssn
+    claim.provider_signature_date                  = "2012-01-02"           # String not date field object
+
     claim.patient_or_authorized_signature          = "Signature on File"
     claim.patient_or_authorized_signature_date     = "2012-08-02"                # Field type is string, not date!
     claim.insured_or_authorized_signature          = "Signature on File"
+
+    @hippo_object.L2010AA do |l2010aa|
+      claim.billing_provider_name                    = l2010aa.NM1.NameLastOrOrganizationName
+      claim.billing_provider_npi                     = l2010aa.NM1.IdentificationCode
+      claim.billing_provider_address                 = l2010aa.N3.AddressInformation
+
+      l2010aa.N4 do |n4|
+        claim.billing_provider_city  =  n4.CityName
+        claim.billing_provider_state =  n4.StateOrProvinceCode
+        claim.billing_provider_zip   =  n4.PostalCode
+      end
+    end
 
     @hippo_object.L2000B do |l2000b|
 
@@ -73,13 +89,14 @@ class HippoClaimCrossover
         claim.insured_other_health_benefit_plan_exists = l2300.L2320.length > 0
         claim.other_insured_policy_or_group_number     = l2300.L2320.SBR.ReferenceIdentification
         claim.other_insured_plan_or_program_name       = l2300.L2320.SBR.Name
-
         claim.condition_reserved_for_local_use         = l2300.NTE.Description
-
         claim.incident_date                            = l2300.find_by_name('Date - Accident').DateTimePeriod.to_s
-
-        claim.admit_date     = l2300.find_by_name('Date - Admission').DateTimePeriod.to_s
-        claim.discharge_date = l2300.find_by_name('Date - Discharge').DateTimePeriod.to_s
+        claim.admit_date                               = l2300.find_by_name('Date - Admission').DateTimePeriod.to_s
+        claim.discharge_date                           = l2300.find_by_name('Date - Discharge').DateTimePeriod.to_s
+        claim.prior_authorization_number               = l2300.REF.ReferenceIdentification
+        claim.patient_account_number                   = l2300.CLM.ClaimSubmitterSIdentifier
+        claim.accepts_assignment                       = l2300.CLM.ProviderAcceptAssignmentCode == "A"
+        claim.provider_signature                       = l2300.CLM.YesNoConditionOrResponseCode == "Y" ? "Signature on File" : ""
 
         l2300.find_by_name('Date - Disability Dates') do |dtp|
           next if dtp.DateTimePeriod.nil?
@@ -111,6 +128,7 @@ class HippoClaimCrossover
         end
 
         l2300.L2310C do |l2310c|
+          claim.service_facility_npi     = l2310c.NM1.IdentificationCode
           claim.service_facility_name    = l2310c.NM1.NameLastOrOrganizationName
           claim.service_facility_address = l2310c.N3.AddressInformation
 
@@ -128,34 +146,7 @@ class HippoClaimCrossover
         claim.outside_lab         = !l2400.PS1.MonetaryAmount
         claim.outside_lab_charges = l2400.PS1.MonetaryAmount
       end
-
-
     end # L2000B
-
-
-    claim.medicaid_resubmission_code               = 'MRC-1'
-    claim.medicaid_resubmission_orginal_ref_number = 'probably unused'
-    claim.prior_authorization_number               = '100000000020310'
-    claim.federal_tax_id                           = :ssn
-    claim.patient_account_number                   = '999999999999999'
-    claim.accepts_assignment                       = false
-
-    claim.provider_signature                       = "Physician Signature"
-    claim.provider_signature_date                  = "2012-01-02"           # String not date field object
-
-    claim.service_facility_npi                     = "10000000000"
-    claim.service_facility_legacy_number           = "10000000000"
-
-    claim.billing_provider_name                    = "North Shore ANES Partners"
-    claim.billing_provider_address                 = "12345 Example Rd"
-    claim.billing_provider_city                    = "Miami"
-    claim.billing_provider_state                   = "FL"
-    claim.billing_provider_zip                     = "34476"
-    claim.billing_provider_phone                   = "5555555555"
-    claim.billing_provider_npi                     = "10000000000"
-    claim.billing_provider_legacy_number           = "10000000000"
-
-
     return claim
   end
 

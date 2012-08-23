@@ -13,90 +13,88 @@ class HippoClaimCrossover
   end
 
   def to_claim
-    claim.insurance_type                           = :medicare
-    claim.billing_provider_phone                   = "5555555555" # ?
-    claim.federal_tax_id                           = :ssn
-    claim.provider_signature_date                  = "2012-01-02"           # String not date field object
+    claim.insurance_type                           = :medicare #1
+    claim.billing_provider_phone                   = "5555555555"
+    claim.federal_tax_id                           = :ssn #25
+    claim.provider_signature_date                  = "2012-01-02"
 
     claim.patient_or_authorized_signature          = "Signature on File"
-    claim.patient_or_authorized_signature_date     = "2012-08-02"                # Field type is string, not date!
+    claim.patient_or_authorized_signature_date     = "2012-08-02"
     claim.insured_or_authorized_signature          = "Signature on File"
 
     @hippo_object.L2010AA do |l2010aa|
-      claim.billing_provider_name                    = l2010aa.NM1.NameLastOrOrganizationName
-      claim.billing_provider_npi                     = l2010aa.NM1.IdentificationCode
-      claim.billing_provider_address                 = l2010aa.N3.AddressInformation
+      claim.billing_provider_name                    = l2010aa.NM1.NameLastOrOrganizationName #33
+      claim.billing_provider_npi                     = l2010aa.NM1.IdentificationCode #33a
+      claim.billing_provider_address                 = l2010aa.N3.AddressInformation #33b
 
       l2010aa.N4 do |n4|
-        claim.billing_provider_city  =  n4.CityName
-        claim.billing_provider_state =  n4.StateOrProvinceCode
-        claim.billing_provider_zip   =  n4.PostalCode
+        claim.billing_provider_city  =  n4.CityName #33
+        claim.billing_provider_state =  n4.StateOrProvinceCode #33
+        claim.billing_provider_zip   =  n4.PostalCode #33
       end
     end
 
     @hippo_object.L2000B do |l2000b|
 
       l2000b.L2010BB do |l2010bb|
-        claim.carrier_name      = l2010bb.NM1.NameLastOrOrganizationName
-        claim.carrier_address_1 = l2010bb.N3.AddressInformation
+        claim.carrier_name      = l2010bb.NM1.NameLastOrOrganizationName  #carrier_block
+        claim.carrier_address_1 = l2010bb.N3.AddressInformation  #carrier_block
 
         l2010bb.N4 do |n4|
-          claim.carrier_city  =  n4.CityName
-          claim.carrier_state =  n4.StateOrProvinceCode
-          claim.carrier_zip   =  n4.PostalCode
+          claim.carrier_city  =  n4.CityName #carrier_block
+          claim.carrier_state =  n4.StateOrProvinceCode #carrier_block
+          claim.carrier_zip   =  n4.PostalCode #carrier_block
         end
 
-        l2010bb.REF_01 do |ref|
-          claim.insured_id_number = ref.ReferenceIdentification
-        end
       end
 
       # insured
       l2000b.L2010BA do |l2010ba|
-        claim.insured_name = l2010ba.NM1.NameLastOrOrganizationName
-        claim.carrier_address_1 = l2010ba.N3.AddressInformation
+        claim.insured_name = l2010ba.NM1.NameLastOrOrganizationName #4
+        claim.carrier_address_1 = l2010ba.N3.AddressInformation #7
+        claim.insured_id_number = l2010ba.NM1.IdentificationCode #1a
 
         l2010ba.N4 do |n4|
-          claim.insured_city  =  n4.CityName
-          claim.insured_state =  n4.StateOrProvinceCode
-          claim.insured_zip   =  n4.PostalCode
+          claim.insured_city  =  n4.CityName            #7
+          claim.insured_state =  n4.StateOrProvinceCode #7
+          claim.insured_zip   =  n4.PostalCode          #7
         end
 
         l2010ba.DMG do |dmg|
-          claim.insured_date_of_birth                    = parse_dmg_date(dmg)
-          claim.insured_sex                              = parse_dmg_dob(dmg)
+          claim.insured_date_of_birth = parse_dmg_date(dmg) #11a
+          claim.insured_sex           = parse_dmg_dob(dmg) #11a
         end
       end
 
       # other insured
       l2000b.L2300.L2320.L2330A do |l2330a|
-        claim.other_insured_name = l2330a.NM1.NameLastOrOrganizationName
+        claim.other_insured_name = l2330a.NM1.NameLastOrOrganizationName #9
       end
 
       if patient_is_subscriber?
-        claim.patient_relationship_to_insured = :self
+        claim.patient_relationship_to_insured = :self #6
         l2000b.L2010BA {|l2010ba| populate_patient(l2010ba)}
       else
-        claim.patient_relationship_to_insured = get_relationship(l2000b.L2000C.PAT.IndividualRelationshipCode)
+        claim.patient_relationship_to_insured = get_relationship(l2000b.L2000C.PAT.IndividualRelationshipCode) #6
         l2000b.L2000C.L2010CA {|l2010ca| populate_patient(l2010ca)}
       end
 
-      claim.insured_insurance_plan_or_program_name   = l2000b.SBR.Name
-      claim.insured_policy_or_group_number           = l2000b.SBR.ReferenceIdentification
+      claim.insured_insurance_plan_or_program_name   = l2000b.SBR.Name #11c
+      claim.insured_policy_or_group_number          = l2000b.SBR.ReferenceIdentification
 
       # Claim Loop
       l2000b.L2300 do |l2300|
-        claim.insured_other_health_benefit_plan_exists = l2300.L2320.length > 0
-        claim.other_insured_policy_or_group_number     = l2300.L2320.SBR.ReferenceIdentification
-        claim.other_insured_plan_or_program_name       = l2300.L2320.SBR.Name
+        claim.insured_other_health_benefit_plan_exists = l2300.L2320.length > 0 #11d
+        claim.other_insured_policy_or_group_number     = l2300.L2320.SBR.ReferenceIdentification #9a
+        claim.other_insured_plan_or_program_name       = l2300.L2320.SBR.Name  #9d
         claim.condition_reserved_for_local_use         = l2300.NTE.Description
         claim.incident_date                            = l2300.find_by_name('Date - Accident').DateTimePeriod.to_s
         claim.admit_date                               = l2300.find_by_name('Date - Admission').DateTimePeriod.to_s
         claim.discharge_date                           = l2300.find_by_name('Date - Discharge').DateTimePeriod.to_s
-        claim.prior_authorization_number               = l2300.REF.ReferenceIdentification
-        claim.patient_account_number                   = l2300.CLM.ClaimSubmitterSIdentifier
-        claim.accepts_assignment                       = l2300.CLM.ProviderAcceptAssignmentCode == "A"
-        claim.provider_signature                       = l2300.CLM.YesNoConditionOrResponseCode == "Y" ? "Signature on File" : ""
+        claim.prior_authorization_number               = l2300.REF.ReferenceIdentification #23
+        claim.patient_account_number                   = l2300.CLM.ClaimSubmitterSIdentifier #26
+        claim.accepts_assignment                       = l2300.CLM.ProviderAcceptAssignmentCode == "A" #27
+        claim.provider_signature                       = l2300.CLM.YesNoConditionOrResponseCode == "Y" ? "Signature on File" : "" #31
 
         l2300.find_by_name('Date - Disability Dates') do |dtp|
           next if dtp.DateTimePeriod.nil?
@@ -110,32 +108,32 @@ class HippoClaimCrossover
                   [nil, dtp.DateTimePeriod]
                 end
 
-          claim.dates_unable_to_work_from,claim.dates_unable_to_work_to = tmp
+          claim.dates_unable_to_work_from,claim.dates_unable_to_work_to = tmp #16
         end
 
-        claim.set_diagnosis_code(1, l2300.HI.IndustryCode_01)
-        claim.set_diagnosis_code(2, l2300.HI.IndustryCode_02)
-        claim.set_diagnosis_code(3, l2300.HI.IndustryCode_03)
-        claim.set_diagnosis_code(4, l2300.HI.IndustryCode_04)
+        claim.set_diagnosis_code(1, l2300.HI.IndustryCode_01) #21
+        claim.set_diagnosis_code(2, l2300.HI.IndustryCode_02) #21
+        claim.set_diagnosis_code(3, l2300.HI.IndustryCode_03) #21
+        claim.set_diagnosis_code(4, l2300.HI.IndustryCode_04) #21
 
-        set_patient_condition_related_to(l2300.CLM)
+        set_patient_condition_related_to(l2300.CLM) #10a
 
         l2300.L2310A do |l2310a|
-          claim.referring_provider_name             = l2310a.NM1.NameLastOrOrganizationName
-          claim.referring_provider_npi              = l2310a.NM1.IdentificationCode
-          claim.referring_provder_other_identifier  = l2310a.REF.ReferenceIdentificationQualifier
-          claim.referring_provider_other_number     = l2310a.REF.ReferenceIdentification
+          claim.referring_provider_name             = l2310a.NM1.NameLastOrOrganizationName #17
+          claim.referring_provider_npi              = l2310a.NM1.IdentificationCode #17b
+          claim.referring_provder_other_identifier  = l2310a.REF.ReferenceIdentificationQualifier #17a
+          claim.referring_provider_other_number     = l2310a.REF.ReferenceIdentification #17a
         end
 
         l2300.L2310C do |l2310c|
-          claim.service_facility_npi     = l2310c.NM1.IdentificationCode
+          claim.service_facility_npi     = l2310c.NM1.IdentificationCode #32a
           claim.service_facility_name    = l2310c.NM1.NameLastOrOrganizationName
-          claim.service_facility_address = l2310c.N3.AddressInformation
+          claim.service_facility_address = l2310c.N3.AddressInformation #32
 
           l2310c.N4 do |n4|
-            claim.service_facility_city  =  n4.CityName
-            claim.service_facility_state =  n4.StateOrProvinceCode
-            claim.service_facility_zip   =  n4.PostalCode
+            claim.service_facility_city  =  n4.CityName            #32
+            claim.service_facility_state =  n4.StateOrProvinceCode #32
+            claim.service_facility_zip   =  n4.PostalCode          #32
           end
         end
       end
@@ -143,8 +141,8 @@ class HippoClaimCrossover
       l2000b.L2300.L2400 do |l2400|
         populate_services(l2400)
 
-        claim.outside_lab         = !l2400.PS1.MonetaryAmount
-        claim.outside_lab_charges = l2400.PS1.MonetaryAmount
+        claim.outside_lab         = !l2400.PS1.MonetaryAmount #20
+        claim.outside_lab_charges = l2400.PS1.MonetaryAmount  #20
       end
     end # L2000B
     return claim
@@ -170,9 +168,9 @@ class HippoClaimCrossover
         s.description                             = srv.SV1.Description
       end
     end
-    claim.total_charge                             = claim.services.inject(0.0) {|m,s| m += s.charges; m}
-    claim.amount_paid                              = service_loop.inject(0.0) {|m,v| m +=  v.L2430.SVD.MonetaryAmount; m}
-    claim.balance_due                              = claim.total_charge - claim.amount_paid
+    claim.total_charge                             = claim.services.inject(0.0) {|m,s| m += s.charges; m} #28
+    claim.amount_paid                              = service_loop.inject(0.0) {|m,v| m +=  v.L2430.SVD.MonetaryAmount; m} #29
+    claim.balance_due                              = claim.total_charge - claim.amount_paid #30
   end
 
   def set_patient_condition_related_to(claim_loop)
@@ -218,22 +216,22 @@ class HippoClaimCrossover
 
   def populate_patient(parent)
     parent.NM1 do |nm1|
-      claim.patient_name = nm1.NameLastOrOrganizationName
+      claim.patient_name = nm1.NameLastOrOrganizationName #2
     end
 
     parent.N3 do |n3|
-      claim.patient_address = n3.AddressInformation
+      claim.patient_address = n3.AddressInformation #5
     end
 
     parent.N4 do |n4|
-      claim.patient_city  =  n4.CityName
-      claim.patient_state =  n4.StateOrProvinceCode
-      claim.patient_zip   =  n4.PostalCode
+      claim.patient_city  =  n4.CityName             #5
+      claim.patient_state =  n4.StateOrProvinceCode  #5
+      claim.patient_zip   =  n4.PostalCode           #5
     end
 
     parent.DMG do |dmg|
-      claim.patient_date_of_birth = parse_dmg_date(dmg)
-      claim.patient_sex           = (dmg.GenderCode == "M") ? :male : :female
+      claim.patient_date_of_birth = parse_dmg_date(dmg) #3
+      claim.patient_sex           = (dmg.GenderCode == "M") ? :male : :female #3
     end
   end
 

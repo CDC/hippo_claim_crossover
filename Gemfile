@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
 
 gem 'pry'
-gem 'hippo'
+gem 'hippo', :path => '../hippo'
 gem 'ruby_claim', :path => '../ruby_claim'

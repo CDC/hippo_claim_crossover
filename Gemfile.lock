@@ -1,4 +1,9 @@
 PATH
+  remote: ../hippo
+  specs:
+    hippo (0.3.0)
+
+PATH
   remote: ../ruby_claim
   specs:
     ruby_claim (0.0.1)
@@ -9,7 +14,6 @@ GEM
   specs:
     Ascii85 (1.0.1)
     coderay (1.0.7)
-    hippo (0.3.0)
     method_source (0.8)
     pdf-reader (1.1.1)
       Ascii85 (~> 1.0.0)
@@ -29,6 +33,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  hippo
+  hippo!
   pry
   ruby_claim!

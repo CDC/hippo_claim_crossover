@@ -1,5 +1,6 @@
 require 'ruby_claim'
 require 'hippo'
+require 'pry'
 
 class HippoClaimCrossover
   VERSION = '0.0.1'
@@ -57,79 +58,80 @@ class HippoClaimCrossover
       end
 
       if patient_is_subscriber?
+        claim.patient_relationship_to_insured = :self
         l2000b.L2010BA {|l2010ba| populate_patient(l2010ba)}
       else
+        claim.patient_relationship_to_insured = get_relationship(l2000b.L2000C.PAT.IndividualRelationshipCode)
         l2000b.L2000C.L2010CA {|l2010ca| populate_patient(l2010ca)}
       end
 
-      l2000b.L2300.L2310C do |l2310c|
-        claim.service_facility_name    = l2310c.NM1.NameLastOrOrganizationName
-        claim.service_facility_address = l2310c.N3.AddressInformation
+      claim.insured_insurance_plan_or_program_name   = l2000b.SBR.Name
+      claim.insured_policy_or_group_number           = l2000b.SBR.ReferenceIdentification
 
-        l2310c.N4 do |n4|
-          claim.service_facility_city  =  n4.CityName
-          claim.service_facility_state =  n4.StateOrProvinceCode
-          claim.service_facility_zip   =  n4.PostalCode
+      # Claim Loop
+      l2000b.L2300 do |l2300|
+        claim.insured_other_health_benefit_plan_exists = l2300.L2320.length > 0
+        claim.other_insured_policy_or_group_number     = l2300.L2320.SBR.ReferenceIdentification
+        claim.other_insured_plan_or_program_name       = l2300.L2320.SBR.Name
+
+        claim.condition_reserved_for_local_use         = l2300.NTE.Description
+
+        claim.incident_date                            = l2300.find_by_name('Date - Accident').DateTimePeriod.to_s
+
+        claim.admit_date     = l2300.find_by_name('Date - Admission').DateTimePeriod.to_s
+        claim.discharge_date = l2300.find_by_name('Date - Discharge').DateTimePeriod.to_s
+
+        l2300.find_by_name('Date - Disability Dates') do |dtp|
+          next if dtp.DateTimePeriod.nil?
+
+          tmp = case dtp.DateTimeQualifier
+                when "314"
+                  [dtp.DateTimePeriod.first,dtp.DateTimePeriod.last]
+                when "360"
+                  [dtp.DateTimePeriod, nil]
+                when "361"
+                  [nil, dtp.DateTimePeriod]
+                end
+
+          claim.dates_unable_to_work_from,claim.dates_unable_to_work_to = tmp
+        end
+
+        claim.set_diagnosis_code(1, l2300.HI.IndustryCode_01)
+        claim.set_diagnosis_code(2, l2300.HI.IndustryCode_02)
+        claim.set_diagnosis_code(3, l2300.HI.IndustryCode_03)
+        claim.set_diagnosis_code(4, l2300.HI.IndustryCode_04)
+
+        set_patient_condition_related_to(l2300.CLM)
+
+        l2300.L2310A do |l2310a|
+          claim.referring_provider_name             = l2310a.NM1.NameLastOrOrganizationName
+          claim.referring_provider_npi              = l2310a.NM1.IdentificationCode
+          claim.referring_provder_other_identifier  = l2310a.REF.ReferenceIdentificationQualifier
+          claim.referring_provider_other_number     = l2310a.REF.ReferenceIdentification
+        end
+
+        l2300.L2310C do |l2310c|
+          claim.service_facility_name    = l2310c.NM1.NameLastOrOrganizationName
+          claim.service_facility_address = l2310c.N3.AddressInformation
+
+          l2310c.N4 do |n4|
+            claim.service_facility_city  =  n4.CityName
+            claim.service_facility_state =  n4.StateOrProvinceCode
+            claim.service_facility_zip   =  n4.PostalCode
+          end
         end
       end
 
-      l2000b.L2300.L2310A do |l2310a|
-        claim.referring_provider_name             = l2310a.NM1.NameLastOrOrganizationName
-        claim.referring_provider_npi              = l2310a.NM1.IdentificationCode
-        claim.referring_provder_other_identifier  = l2310a.REF.ReferenceIdentificationQualifier
-        claim.referring_provider_other_number     = l2310a.REF.ReferenceIdentification
+      l2000b.L2300.L2400 do |l2400|
+        populate_services(l2400)
+
+        claim.outside_lab         = !l2400.PS1.MonetaryAmount
+        claim.outside_lab_charges = l2400.PS1.MonetaryAmount
       end
 
-      populate_services(l2000b.L2300.L2400)
+
     end # L2000B
 
-
-
-    claim.employer_name_or_school_name             = 'University Of Florida'
-
-    claim.insured_policy_or_group_number           = '12341251'
-    claim.insured_other_health_benefit_plan_exists = false
-    claim.insured_employer_or_school_name          = 'University of Central London'
-    claim.insured_insurance_plan_or_program_name   = "Blue Cross Bad Wolf"
-
-
-    claim.other_insured_date_of_birth              = "2010-01-01"
-    claim.other_insured_sex                        = :male
-    claim.other_insured_policy_or_group_number     = '123451'
-
-    claim.other_insured_plan_or_program_name       = 'PLAN OR PROGRAM NAME'
-
-    claim.patient_marital_status                   = :single
-    claim.patient_employment_status                = :full_time_student
-    claim.patient_relationship_to_insured          = :self
-
-    claim.condition_related_to_other_accident      = true
-    claim.condition_related_to_employment          = false
-    claim.condition_related_to_auto_accident       = false
-    claim.condition_place                          = "FL"
-
-    claim.condition_reserved_for_local_use         = "RESERVED FOR LOCAL"
-    # Section 14 and lower
-
-    claim.incident_date                            = "2012-02-03"
-    claim.incident_onset_date                      = "2012-02-10"
-
-    claim.dates_unable_to_work_from                = "2012-02-10"
-    claim.dates_unable_to_work_to                  = "2012-02-11"
-
-
-
-    claim.admit_date                               = "2012-02-10"
-    claim.discharge_date                           = "2012-02-14"
-    claim.reserved_for_local_use                   = "Reserved for future use"
-    claim.outside_lab                              = true                       #20
-    claim.outside_lab_charges                      = 999999.01                  #20
-
-    # 21
-    claim.set_diagnosis_code(1, 'V722.83')
-    claim.set_diagnosis_code(2, '720.2')
-    claim.set_diagnosis_code(3, '100.2')
-    claim.set_diagnosis_code(4, '100.2')
 
     claim.medicaid_resubmission_code               = 'MRC-1'
     claim.medicaid_resubmission_orginal_ref_number = 'probably unused'
@@ -137,10 +139,6 @@ class HippoClaimCrossover
     claim.federal_tax_id                           = :ssn
     claim.patient_account_number                   = '999999999999999'
     claim.accepts_assignment                       = false
-
-    claim.total_charge                             = 200.01
-    claim.amount_paid                              = 201.99
-    claim.balance_due                              = -1.99
 
     claim.provider_signature                       = "Physician Signature"
     claim.provider_signature_date                  = "2012-01-02"           # String not date field object
@@ -164,25 +162,66 @@ class HippoClaimCrossover
   def populate_services(service_loop)
     service_loop.each do |srv|
       claim.build_service do |s|
-        binding.pry
-
-        s.date_of_service_from    = [[0,4],[4,2],[6,2]].map {|pos| srv.DTP.DateTimePeriod[*pos]}.join("-")
-        s.place_of_service        = "22"
-        s.emergency               = ''
-        s.procedure_code          = srv.L2430.SVD.ProductServiceId
-        s.modifier_1              = srv.L2430.SVD.ProcedureModifier_01
-        s.modifier_2              = srv.L2430.SVD.ProcedureModifier_02
-        s.modifier_3              = srv.L2430.SVD.ProcedureModifier_03
-        s.modifier_4              = srv.L2430.SVD.ProcedureModifier_04
-        s.diagnosis_pointer       = "1"
-        s.charges                 = srv.L2430.SVD.MonetaryAmount.to_f
-        s.days_or_units           = srv.L2430.SVD.Quantity.to_i
-        s.epsdt_family_plan       = "Y"
-        s.npi_number              = rand(10000000000000).to_s
-        s.legacy_number_qualifier = "J1"
-        s.legacy_number           = rand(10000000000000).to_s
-        s.description             = ""
+        s.date_of_service_from                    = srv.DTP.DateTimePeriod.to_s
+        s.place_of_service                        = get_place_of_service_identifier(srv)
+        s.emergency                               = ''
+        s.procedure_code                          = srv.L2430.SVD.ProductServiceId
+        s.modifier_1                              = srv.L2430.SVD.ProcedureModifier_01
+        s.modifier_2                              = srv.L2430.SVD.ProcedureModifier_02
+        s.modifier_3                              = srv.L2430.SVD.ProcedureModifier_03
+        s.modifier_4                              = srv.L2430.SVD.ProcedureModifier_04
+        s.diagnosis_pointer                       = [srv.SV1.DiagnosisCodePointer_01,srv.SV1.DiagnosisCodePointer_02,srv.SV1.DiagnosisCodePointer_03,srv.SV1.DiagnosisCodePointer_04].join
+        s.charges                                 = srv.SV1.MonetaryAmount.to_f
+        s.days_or_units                           = srv.L2430.SVD.Quantity.to_i
+        s.epsdt_family_plan                       = ''
+        s.npi_number                              = get_service_npi(srv)
+        s.legacy_number_qualifier,s.legacy_number = get_service_legacy_number_qualifier_and_legacy_number(srv)
+        s.description                             = srv.SV1.Description
       end
+    end
+    claim.total_charge                             = claim.services.inject(0.0) {|m,s| m += s.charges; m}
+    claim.amount_paid                              = service_loop.inject(0.0) {|m,v| m +=  v.L2430.SVD.MonetaryAmount; m}
+    claim.balance_due                              = claim.total_charge - claim.amount_paid
+  end
+
+  def set_patient_condition_related_to(claim_loop)
+    claim.condition_related_to_other_accident = claim_loop.RelatedCausesCode_01 == "OA" || claim_loop.RelatedCausesCode_02
+    claim.condition_related_to_employment     = claim_loop.RelatedCausesCode_01 == "EM" || claim_loop.RelatedCausesCode_02
+    claim.condition_related_to_auto_accident  = claim_loop.RelatedCausesCode_01 == "AA" || claim_loop.RelatedCausesCode_02
+    claim.condition_place                     = claim_loop.StateOrProvinceCode
+  end
+
+  def get_relationship(relationship)
+    case relationship
+    when "01" then :spouse
+    when "19" then :child
+    else           :other
+    end
+  end
+
+  def get_place_of_service_identifier(service)
+    if service.SV1.FacilityCodeValue.nil?
+       @hippo_object.L2000B.L2300.CLM.FacilityCodeValue
+    else
+      service.SV1.FacilityCodeValue
+    end
+  end
+
+  def get_service_legacy_number_qualifier_and_legacy_number(service)
+    if service.L2420A.REF.ReferenceIdentification.nil?
+      [@hippo_object.L2000B.L2300.L2310A.REF.ReferenceIdentificationQualifier,
+       @hippo_object.L2000B.L2300.L2310A.REF.ReferenceIdentification ]
+     else
+      [service.L2420A.REF.ReferenceIdentificationQualifier,
+       service.L2420A.REF.ReferenceIdentification]
+    end
+  end
+
+  def get_service_npi(service)
+    if service.L2420A.NM1.IdentificationCode.nil?
+      @hippo_object.L2000B.L2300.L2310A.NM1.IdentificationCode
+    else
+      service.L2420A.NM1.IdentificationCode
     end
   end
 
@@ -212,7 +251,7 @@ class HippoClaimCrossover
   end
 
   def parse_dmg_date(dmg)
-    [[0,4],[4,2],[6,2]].map {|pos| dmg.DateTimePeriod[*pos] }.join("-")
+    dmg.DateTimePeriod.to_s
   end
 
   def parse_dmg_dob(dmg)

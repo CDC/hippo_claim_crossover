@@ -169,7 +169,7 @@ class HippoClaimCrossover
       end
     end
     claim.total_charge                             = claim.services.inject(0.0) {|m,s| m += s.charges; m} #28
-    claim.amount_paid                              = service_loop.inject(0.0) {|m,v| m +=  v.L2430.SVD.MonetaryAmount; m} #29
+    claim.amount_paid                              = service_loop.inject(0.0)   {|m,v| m += v.L2430.SVD.MonetaryAmount.to_f; m} #29
     claim.balance_due                              = claim.total_charge - claim.amount_paid #30
   end
 

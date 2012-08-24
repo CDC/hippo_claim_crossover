@@ -46,6 +46,7 @@ class HippoClaimCrossover
   end
 
   def populate_subscriber(l2000b)
+    binding.pry
     l2000b.L2010BB do |l2010bb|
       claim.carrier_name      = l2010bb.NM1.NameLastOrOrganizationName  #carrier_block
       claim.carrier_address_1 = l2010bb.N3.AddressInformation  #carrier_block
@@ -69,7 +70,7 @@ class HippoClaimCrossover
     # insured
     l2000b.L2010BA do |l2010ba|
       claim.insured_name      = l2010ba.NM1.NameLastOrOrganizationName #4
-      claim.carrier_address_1 = l2010ba.N3.AddressInformation #7
+      claim.insured_address   = l2010ba.N3.AddressInformation #7
       claim.insured_id_number = l2010ba.NM1.IdentificationCode #1a
 
       l2010ba.N4 do |n4|
@@ -137,10 +138,10 @@ class HippoClaimCrossover
         claim.dates_unable_to_work_from,claim.dates_unable_to_work_to = tmp #16
       end
 
-      claim.set_diagnosis_code(1, l2300.HI.IndustryCode_01) #21
-      claim.set_diagnosis_code(2, l2300.HI.IndustryCode_02) #21
-      claim.set_diagnosis_code(3, l2300.HI.IndustryCode_03) #21
-      claim.set_diagnosis_code(4, l2300.HI.IndustryCode_04) #21
+      claim.set_diagnosis_code(1, format_diagnosis_code(l2300.HI.IndustryCode_01)) #21
+      claim.set_diagnosis_code(2, format_diagnosis_code(l2300.HI.IndustryCode_02)) #21
+      claim.set_diagnosis_code(3, format_diagnosis_code(l2300.HI.IndustryCode_03)) #21
+      claim.set_diagnosis_code(4, format_diagnosis_code(l2300.HI.IndustryCode_04)) #21
 
       set_patient_condition_related_to(l2300.CLM) #10a
 
@@ -165,6 +166,19 @@ class HippoClaimCrossover
 
 
       populate_services(l2300.L2400) #24
+    end
+  end
+
+  def format_diagnosis_code(code)
+    #     Standard codes have Decimal place XXX.XX
+    #     Some Codes Do not have trailing decimal places
+    #     V Codes also follow the XXX.XX format --> V54.31
+    #     E Codes follow XXXX.X --> E850.9
+    return if code.nil?
+    if code  =~ /\AE/
+      code.insert(4,'.')
+    else
+      code.insert(3,'.')
     end
   end
 
@@ -220,12 +234,18 @@ class HippoClaimCrossover
   end
 
   def get_service_legacy_number_qualifier_and_legacy_number(service)
-    if service.L2420A.REF.ReferenceIdentification.nil?
-      [@hippo_object.L2000B.L2300.L2310A.REF.ReferenceIdentificationQualifier,
-       @hippo_object.L2000B.L2300.L2310A.REF.ReferenceIdentification ]
-     else
+    if !service.L2420A.REF.ReferenceIdentification.nil?
       [service.L2420A.REF.ReferenceIdentificationQualifier,
-       service.L2420A.REF.ReferenceIdentification]
+      service.L2420A.REF.ReferenceIdentification]
+    elsif !service.L2420A.PRV.ReferenceIdentification.nil?
+      ['ZZ',
+       service.L2420A.PRV.ReferenceIdentification]
+    elsif !@hippo_object.L2000B.L2300.L2310B.REF.ReferenceIdentification.nil?
+      [@hippo_object.L2000B.L2300.L2310B.REF.ReferenceIdentificationQualifier,
+       @hippo_object.L2000B.L2300.L2310B.REF.ReferenceIdentification ]
+    else
+      ['ZZ',
+       @hippo_object.L2000B.L2300.L2310B.PRV.ReferenceIdentification ]
     end
   end
 

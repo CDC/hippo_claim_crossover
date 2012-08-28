@@ -183,7 +183,7 @@ class HippoClaimCrossover
   end
 
   def format_postal_code(postal_code)
-    if postal_code.to_s.length = 9
+    if postal_code.to_s.length == 9
       postal_code.to_s[0,5] + '-' + postal_code.to_s[5,4]
     else
       postal_code.to_s[0,5]

@@ -20,7 +20,7 @@ class HippoClaimCrossover
   end
 
   def populate_billing_provider(l2010aa)
-    claim.billing_provider_name                    = l2010aa.NM1.NameLastOrOrganizationName #33
+    claim.billing_provider_name                    = get_name(l2010aa.NM1) #33
     claim.billing_provider_npi                     = l2010aa.NM1.IdentificationCode #33a
     claim.billing_provider_address                 = l2010aa.N3.AddressInformation #33b
 
@@ -69,7 +69,7 @@ class HippoClaimCrossover
 
     # insured
     l2000b.L2010BA do |l2010ba|
-      claim.insured_name      = l2010ba.NM1.NameLastOrOrganizationName #4
+      claim.insured_name      = get_name(l2010ba.NM1) #4
       claim.insured_address   = l2010ba.N3.AddressInformation #7
       claim.insured_id_number = l2010ba.NM1.IdentificationCode #1a
 
@@ -87,7 +87,7 @@ class HippoClaimCrossover
 
     # other insured
     l2000b.L2300.L2320.L2330A do |l2330a|
-      claim.other_insured_name = l2330a.NM1.NameLastOrOrganizationName #9
+      claim.other_insured_name = get_name(l2330a.NM1) #9
     end
 
     claim.insured_insurance_plan_or_program_name = l2000b.SBR.Name #11c
@@ -146,7 +146,7 @@ class HippoClaimCrossover
       set_patient_condition_related_to(l2300.CLM) #10a
 
       l2300.L2310A do |l2310a|
-        claim.referring_provider_name             = l2310a.NM1.NameLastOrOrganizationName #17
+        claim.referring_provider_name             = get_name(l2310a.NM1) #17
         claim.referring_provider_npi              = l2310a.NM1.IdentificationCode #17b
         claim.referring_provder_other_identifier  = l2310a.REF.ReferenceIdentificationQualifier #17a
         claim.referring_provider_other_number     = l2310a.REF.ReferenceIdentification #17a
@@ -154,7 +154,7 @@ class HippoClaimCrossover
 
       l2300.L2310C do |l2310c|
         claim.service_facility_npi     = l2310c.NM1.IdentificationCode #32a
-        claim.service_facility_name    = l2310c.NM1.NameLastOrOrganizationName
+        claim.service_facility_name    = get_name(l2310c.NM1)
         claim.service_facility_address = l2310c.N3.AddressInformation #32
 
         l2310c.N4 do |n4|
@@ -217,6 +217,14 @@ class HippoClaimCrossover
     claim.condition_place                     = claim_loop.StateOrProvinceCode
   end
 
+  def get_name(nm1)
+    if nm1.EntityTypeQualifier == '1'
+      "#{nm1.NameLastOrOrganizationName.to_s}, #{nm1.NameFirst.to_s}#{', ' + nm1.NameMiddle[0,1] if nm1.NameMiddle}"
+    else
+      nm1.NameLastOrOrganizationName
+    end
+  end
+
   def get_relationship(relationship)
     case relationship
     when "01" then :spouse
@@ -259,7 +267,7 @@ class HippoClaimCrossover
 
   def populate_patient(parent)
     parent.NM1 do |nm1|
-      claim.patient_name = nm1.NameLastOrOrganizationName #2
+      claim.patient_name = get_name(nm1) #2
     end
 
     parent.N3 do |n3|

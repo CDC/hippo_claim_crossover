@@ -202,12 +202,13 @@ class HippoClaimCrossover
         s.description                             = srv.SV1.Description
       end
     end
-    claim.outside_lab_charges                      = service_loop.inject(0.0)   {|m,v| m += v.PS1.MonetaryAmount.to_f; m} #20
-    claim.outside_lab                              = !!claim.outside_lab_charges
+    lab_charges                                   = service_loop.inject(0.0) {|m,v| m += v.PS1.MonetaryAmount.to_f; m}
+    claim.outside_lab_charges                     = lab_charges if lab_charges > 0 #20
+    claim.outside_lab                             = lab_charges > 0
 
-    claim.total_charge                             = claim.services.inject(0.0) {|m,s| m += s.charges; m} #28
-    claim.amount_paid                              = service_loop.inject(0.0)   {|m,v| m += v.L2430.SVD.MonetaryAmount.to_f; m} #29
-    claim.balance_due                              = claim.total_charge - claim.amount_paid #30
+    claim.total_charge                            = claim.services.inject(0.0) {|m,s| m += s.charges; m} #28
+    claim.amount_paid                             = service_loop.inject(0.0)   {|m,v| m += v.L2430.SVD.MonetaryAmount.to_f; m} #29
+    claim.balance_due                             = claim.total_charge - claim.amount_paid #30
   end
 
   def set_patient_condition_related_to(claim_loop)

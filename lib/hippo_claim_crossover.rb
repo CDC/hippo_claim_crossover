@@ -27,7 +27,7 @@ class HippoClaimCrossover
     l2010aa.N4 do |n4|
       claim.billing_provider_city  =  n4.CityName #33
       claim.billing_provider_state =  n4.StateOrProvinceCode #33
-      claim.billing_provider_zip   =  n4.PostalCode #33
+      claim.billing_provider_zip   =  format_postal_code(n4.PostalCode) #33
     end
 
     #25
@@ -54,7 +54,7 @@ class HippoClaimCrossover
       l2010bb.N4 do |n4|
         claim.carrier_city  =  n4.CityName #carrier_block
         claim.carrier_state =  n4.StateOrProvinceCode #carrier_block
-        claim.carrier_zip   =  n4.PostalCode #carrier_block
+        claim.carrier_zip   =  format_postal_code(n4.PostalCode) #carrier_block
       end
 
     end
@@ -76,7 +76,7 @@ class HippoClaimCrossover
       l2010ba.N4 do |n4|
         claim.insured_city  =  n4.CityName            #7
         claim.insured_state =  n4.StateOrProvinceCode #7
-        claim.insured_zip   =  n4.PostalCode          #7
+        claim.insured_zip   =  format_postal_code(n4.PostalCode) #7
       end
 
       l2010ba.DMG do |dmg|
@@ -160,7 +160,7 @@ class HippoClaimCrossover
         l2310c.N4 do |n4|
           claim.service_facility_city  =  n4.CityName            #32
           claim.service_facility_state =  n4.StateOrProvinceCode #32
-          claim.service_facility_zip   =  n4.PostalCode          #32
+          claim.service_facility_zip   =  format_postal_code(n4.PostalCode) #32
         end
       end
 
@@ -179,6 +179,14 @@ class HippoClaimCrossover
       code.insert(4,'.')
     else
       code.insert(3,'.')
+    end
+  end
+
+  def format_postal_code(postal_code)
+    if postal_code.to_s.length = 9
+      postal_code.to_s[0,5] + '-' + postal_code.to_s[5,4]
+    else
+      postal_code.to_s[0,5]
     end
   end
 
@@ -278,7 +286,7 @@ class HippoClaimCrossover
     parent.N4 do |n4|
       claim.patient_city  =  n4.CityName             #5
       claim.patient_state =  n4.StateOrProvinceCode  #5
-      claim.patient_zip   =  n4.PostalCode           #5
+      claim.patient_zip   =  format_postal_code(n4.PostalCode) #5
     end
 
     parent.DMG do |dmg|

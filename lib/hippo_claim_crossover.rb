@@ -46,7 +46,7 @@ class HippoClaimCrossover
   end
 
   def populate_subscriber(l2000b)
-    binding.pry
+
     l2000b.L2010BB do |l2010bb|
       claim.carrier_name      = l2010bb.NM1.NameLastOrOrganizationName  #carrier_block
       claim.carrier_address_1 = l2010bb.N3.AddressInformation  #carrier_block

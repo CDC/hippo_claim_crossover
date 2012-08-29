@@ -208,15 +208,12 @@ class HippoClaimCrossover
         s.npi_number                              = get_service_npi(srv)
         s.legacy_number_qualifier,s.legacy_number = get_service_legacy_number_qualifier_and_legacy_number(srv)
         s.description                             = srv.SV1.Description
+        s.service_paid_amount                     = srv.L2430.SVD.MonetaryAmount.to_f
       end
     end
     lab_charges                                   = service_loop.inject(0.0) {|m,v| m += v.PS1.MonetaryAmount.to_f; m}
     claim.outside_lab_charges                     = lab_charges if lab_charges > 0 #20
     claim.outside_lab                             = lab_charges > 0
-
-    claim.total_charge                            = claim.services.inject(0.0) {|m,s| m += s.charges; m} #28
-    claim.amount_paid                             = service_loop.inject(0.0)   {|m,v| m += v.L2430.SVD.MonetaryAmount.to_f; m} #29
-    claim.balance_due                             = claim.total_charge - claim.amount_paid #30
   end
 
   def set_patient_condition_related_to(claim_loop)

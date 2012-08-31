@@ -241,7 +241,7 @@ class HippoClaimCrossover
 
   def get_place_of_service_identifier(service)
     if service.SV1.FacilityCodeValue.nil?
-       @hippo_object.L2000B.L2300.CLM.FacilityCodeValue
+      service.parent.CLM.FacilityCodeValue
     else
       service.SV1.FacilityCodeValue
     end
@@ -254,18 +254,18 @@ class HippoClaimCrossover
     elsif !service.L2420A.PRV.ReferenceIdentification.nil?
       ['ZZ',
        service.L2420A.PRV.ReferenceIdentification]
-    elsif !@hippo_object.L2000B.L2300.L2310B.REF.ReferenceIdentification.nil?
-      [@hippo_object.L2000B.L2300.L2310B.REF.ReferenceIdentificationQualifier,
-       @hippo_object.L2000B.L2300.L2310B.REF.ReferenceIdentification ]
+    elsif !service.parent.L2310B.REF.ReferenceIdentification.nil?
+      [service.parent.L2310B.REF.ReferenceIdentificationQualifier,
+       service.parent.L2310B.REF.ReferenceIdentification ]
     else
       ['ZZ',
-       @hippo_object.L2000B.L2300.L2310B.PRV.ReferenceIdentification ]
+       service.parent.L2310B.PRV.ReferenceIdentification ]
     end
   end
 
   def get_service_npi(service)
     if service.L2420A.NM1.IdentificationCode.nil?
-      @hippo_object.L2000B.L2300.L2310A.NM1.IdentificationCode
+      service.parent.L2300.L2310A.NM1.IdentificationCode
     else
       service.L2420A.NM1.IdentificationCode
     end

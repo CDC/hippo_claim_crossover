@@ -46,7 +46,6 @@ class HippoClaimCrossover
   end
 
   def populate_subscriber(l2000b)
-
     l2000b.L2010BB do |l2010bb|
       claim.carrier_name      = l2010bb.NM1.NameLastOrOrganizationName  #carrier_block
       claim.carrier_address_1 = l2010bb.N3.AddressInformation  #carrier_block
@@ -56,7 +55,6 @@ class HippoClaimCrossover
         claim.carrier_state =  n4.StateOrProvinceCode #carrier_block
         claim.carrier_zip   =  format_postal_code(n4.PostalCode) #carrier_block
       end
-
     end
 
     claim.insurance_type =  case l2000b.SBR.ClaimFilingIndicatorCode #1
@@ -85,26 +83,23 @@ class HippoClaimCrossover
       end
     end
 
-    # other insured
-    l2000b.L2300.L2320.L2330A do |l2330a|
-      claim.other_insured_name = get_name(l2330a.NM1) #9
-    end
-
     claim.insured_insurance_plan_or_program_name = l2000b.SBR.Name #11c
     claim.insured_policy_or_group_number         = l2000b.SBR.ReferenceIdentification
+
+    claim.other_insured_name = get_name(claim_loop.L2320.L2330A.NM1) #9
 
     if patient_is_subscriber?
       claim.patient_relationship_to_insured = :self #6
       l2000b.L2010BA {|l2010ba| populate_patient(l2010ba)}
-      populate_claim(l2000b.L2300)
     else
       claim.patient_relationship_to_insured = get_relationship(l2000b.L2000C.PAT.IndividualRelationshipCode) #6
       l2000b.L2000C.L2010CA {|l2010ca| populate_patient(l2010ca)}
-      populate_claim(l2000b.L2000C.L2300)
     end
+
+    populate_claim
   end
 
-  def populate_claim(claim_loop)
+  def populate_claim
     # Claim Loop
     claim_loop.each do |l2300|
       claim.provider_signature_date                  = Date.today.to_s
@@ -216,11 +211,11 @@ class HippoClaimCrossover
     claim.outside_lab                             = lab_charges > 0
   end
 
-  def set_patient_condition_related_to(claim_loop)
-    claim.condition_related_to_other_accident = claim_loop.RelatedCausesCode_01 == "OA" || claim_loop.RelatedCausesCode_02
-    claim.condition_related_to_employment     = claim_loop.RelatedCausesCode_01 == "EM" || claim_loop.RelatedCausesCode_02
-    claim.condition_related_to_auto_accident  = claim_loop.RelatedCausesCode_01 == "AA" || claim_loop.RelatedCausesCode_02
-    claim.condition_place                     = claim_loop.StateOrProvinceCode
+  def set_patient_condition_related_to(clm)
+    claim.condition_related_to_other_accident = clm.RelatedCausesCode_01 == "OA" || clm.RelatedCausesCode_02
+    claim.condition_related_to_employment     = clm.RelatedCausesCode_01 == "EM" || clm.RelatedCausesCode_02
+    claim.condition_related_to_auto_accident  = clm.RelatedCausesCode_01 == "AA" || clm.RelatedCausesCode_02
+    claim.condition_place                     = clm.StateOrProvinceCode
   end
 
   def get_name(nm1)
@@ -268,6 +263,14 @@ class HippoClaimCrossover
       service.parent.L2300.L2310A.NM1.IdentificationCode
     else
       service.L2420A.NM1.IdentificationCode
+    end
+  end
+
+  def claim_loop
+    if patient_is_subscriber?
+      @hippo_object.L2000B.L2300
+    else
+      @hippo_object.L2000B.L2000C.L2300
     end
   end
 

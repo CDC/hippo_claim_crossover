@@ -60,7 +60,7 @@ class HippoClaimCrossover
     claim.insurance_type =  case l2000b.SBR.ClaimFilingIndicatorCode #1
                             when 'MA','MB'  then :medicare
                             when 'MC'       then :medicaid
-                            when 'CH'       then :champus
+                            when 'CH'       then :tricare_champus
                             when 'VA'       then :champva
                             else                 :other
                             end

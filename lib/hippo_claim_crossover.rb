@@ -260,7 +260,7 @@ class HippoClaimCrossover
 
   def get_service_npi(service)
     if service.L2420A.NM1.IdentificationCode.nil?
-      service.parent.L2300.L2310A.NM1.IdentificationCode
+      service.parent.L2310A.NM1.IdentificationCode
     else
       service.L2420A.NM1.IdentificationCode
     end
